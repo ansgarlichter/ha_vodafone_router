@@ -12,13 +12,22 @@ _LOGGER = logging.getLogger(__name__)
 class VodafoneDeviceCoordinator(DataUpdateCoordinator):
     """Coordinator to poll Vodafone Station devices."""
 
-    def __init__(self, hass: HomeAssistant, host: str, username: str, password: str, scan_interval: int = DEFAULT_SCAN_INTERVAL):
+    def __init__(self, hass: HomeAssistant, host: str, username: str, password: str, 
+                 scan_interval: int = DEFAULT_SCAN_INTERVAL, mac_filter: str = ""):
         """Initialize."""
         _LOGGER.info("Initializing VodafoneDeviceCoordinator for host: %s with scan interval: %s seconds", host, scan_interval)
         self.box = VodafoneBox(host)
         self.username = username
         self.password = password
         self._update_count = 0  # Track update cycles
+        
+        # Process MAC filter
+        if mac_filter.strip():
+            self.mac_filter = {mac.strip().lower().replace("-", ":") for mac in mac_filter.split(",") if mac.strip()}
+            _LOGGER.info("MAC filter enabled for %s devices: %s", len(self.mac_filter), list(self.mac_filter))
+        else:
+            self.mac_filter = None
+            _LOGGER.info("No MAC filter - all devices will be included")
         
         _LOGGER.debug("Setting up coordinator with update interval: %s seconds", scan_interval)
 
@@ -54,7 +63,7 @@ class VodafoneDeviceCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Starting device data update (cycle %s)", self._update_count)
         self._update_count += 1
         
-        # Optional: Force fresh login every N cycles (e.g., every 10 minutes)
+        # Force fresh login every N cycles (e.g., every 10 minutes)
         force_fresh_login = self._update_count % 20 == 0  # Every 20 cycles = 10 mins if 30s interval
         
         if force_fresh_login:
@@ -69,6 +78,32 @@ class VodafoneDeviceCoordinator(DataUpdateCoordinator):
             devices = await self.hass.async_add_executor_job(self.box.get_connected_devices)
             
             if devices:
+                # Normalize all MAC addresses to lowercase for consistency
+                for device in devices.get('lanDevices', []):
+                    if device.get('MAC'):
+                        device['MAC'] = device['MAC'].lower()
+                
+                for device in devices.get('wlanDevices', []):
+                    if device.get('MAC'):
+                        device['MAC'] = device['MAC'].lower()
+                
+                # Apply MAC filtering if configured
+                if self.mac_filter:
+                    original_lan_count = len(devices.get('lanDevices', []))
+                    original_wlan_count = len(devices.get('wlanDevices', []))
+                    
+                    filtered_lan = [d for d in devices.get('lanDevices', []) 
+                                   if d.get('MAC', '') in self.mac_filter]
+                    filtered_wlan = [d for d in devices.get('wlanDevices', []) 
+                                    if d.get('MAC', '') in self.mac_filter]
+                    
+                    devices['lanDevices'] = filtered_lan
+                    devices['wlanDevices'] = filtered_wlan
+                    
+                    _LOGGER.debug("MAC filtering applied: LAN %s->%s, WLAN %s->%s", 
+                                 original_lan_count, len(filtered_lan), 
+                                 original_wlan_count, len(filtered_wlan))
+                
                 lan_count = len(devices.get('lanDevices', []))
                 wlan_count = len(devices.get('wlanDevices', []))
                 _LOGGER.info("Device update successful: %s LAN devices, %s WLAN devices", lan_count, wlan_count)

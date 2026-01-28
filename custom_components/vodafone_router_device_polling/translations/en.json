@@ -7,9 +7,52 @@
         "data": {
           "host": "Router IP address",
           "username": "Username",
-          "password": "Password"
+          "password": "Password",
+          "mac_filter": "MAC Address Filter (optional)",
+          "enable_binary_sensor": "Enable Binary Sensors",
+          "enable_device_tracker": "Enable Device Trackers"
+        },
+        "data_description": {
+          "host": "The IP address of your Vodafone Station (usually 192.168.0.1)",
+          "username": "Your router admin username (usually 'admin')",
+          "password": "Your router admin password",
+          "mac_filter": "Comma-separated MAC addresses to include only specific devices (leave empty to include all devices). Example: aa:bb:cc:dd:ee:ff, 11:22:33:44:55:66",
+          "enable_binary_sensor": "Create binary sensors showing device connectivity status (ON/OFF)",
+          "enable_device_tracker": "Create device trackers showing device presence (home/not_home)"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Vodafone Station. Please check the IP address, username, and password.",
+      "invalid_auth": "Invalid authentication credentials.",
+      "unknown": "An unexpected error occurred."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vodafone Router Options",
+        "description": "Configure your Vodafone Station integration options. Host: {host}",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "mac_filter": "MAC Address Filter (optional)",
+          "enable_binary_sensor": "Enable Binary Sensors",
+          "enable_device_tracker": "Enable Device Trackers"
+        },
+        "data_description": {
+          "username": "Your router admin username (usually 'admin')",
+          "password": "Your router admin password",
+          "mac_filter": "Comma-separated MAC addresses to include only specific devices (leave empty to include all devices). Example: aa:bb:cc:dd:ee:ff, 11:22:33:44:55:66",
+          "enable_binary_sensor": "Create binary sensors showing device connectivity status (ON/OFF)",
+          "enable_device_tracker": "Create device trackers showing device presence (home/not_home)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Vodafone Station. Please check the username and password.",
+      "invalid_auth": "Invalid authentication credentials.",
+      "unknown": "An unexpected error occurred."
     }
   }
 }
