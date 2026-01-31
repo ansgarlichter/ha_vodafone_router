@@ -1,13 +1,5 @@
 {
-  "domain": "vodafone_router_device_polling",
-  "name": "Vodafone Station Device Polling",
-  "version": "0.1.0",
-  "config_flow": true,
-  "documentation": "https://github.com/YOUR_GITHUB/vodafone_station",
-  "issue_tracker": "https://github.com/YOUR_GITHUB/vodafone_station/issues",
-  "requirements": [
-    "cryptography>=42.0.0,<43.0.0"
-  ],
-  "codeowners": ["@YOUR_GITHUB"],
-  "iot_class": "local_polling"
+  "name": "HA Vodafone Router",
+  "version": "1.0.0",
+  "homeassistant": "2026.1.2"
 }
