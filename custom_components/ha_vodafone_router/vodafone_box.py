@@ -3,6 +3,7 @@ import json
 import requests
 import re
 import logging
+import time
 
 from .sjcl import SJCL
 
@@ -226,43 +227,59 @@ class VodafoneBox:
             _LOGGER.warning("Logout may have failed with status: %s", resp.status_code)
 
     def get_connected_devices(self):
-        _LOGGER.debug("Fetching connected devices overview data")
-        resp = self._get("overview_data.php")
-        _LOGGER.debug(
-            "Overview data response status: %s, content length: %s",
-            resp.status_code,
-            len(resp.content),
-        )
+        max_retries = 3
+        retry_delay_in_seconds = 2
 
-        text = resp.text
-        _LOGGER.debug("Overview data received, parsing device information")
+        for attempt in range(max_retries):
+            _LOGGER.debug("Fetching connected devices (Attempt %s/%s)", attempt + 1, max_retries)
+            resp = self._get("overview_data.php")
+            text = resp.text
 
+            _LOGGER.debug("Overview data received: %s", text)
+            
+            if "PAGE_OVERVIEW_SESSION_LOST_POPUP_TEXT" in text or resp.status_code == 400:
+                _LOGGER.warning("Vodafone Station session expired. Re-authentication required.")
+                raise Exception("Session lost")
+
+            lan_devices = self._safe_extract(text, "json_lanAttachedDevice")
+            wireless_devices = self._safe_extract(text, "json_primaryWlanAttachedDevice")
+
+            if lan_devices is not None and wireless_devices is not None:
+                total_found = len(lan_devices) + len(wireless_devices)
+                
+                if total_found > 0:
+                    _LOGGER.info("Found %s LAN and %s WLAN devices", len(lan_devices), len(wireless_devices))
+                    return {
+                        "lanDevices": lan_devices,
+                        "wlanDevices": wireless_devices,
+                    }
+                
+                if attempt < max_retries - 1:
+                    _LOGGER.debug(
+                        "Router reported 0 devices (stale data). Retrying in %ss...", 
+                        retry_delay_in_seconds
+                    )
+                    time.sleep(retry_delay_in_seconds)
+                    continue
+                else:
+                    _LOGGER.warning("Confirmed 0 devices after %s attempts.", max_retries)
+                    return {
+                        "lanDevices": [],
+                        "wlanDevices": [],
+                    }
+            
+            raise ValueError("Parsing failed: Response format has changed or is corrupted.")
+
+    def _safe_extract(self, data, var_name):
+        """Note the 'self' added as the first argument below."""
         try:
-            _LOGGER.debug("Extracting LAN devices JSON from response")
-            lan_devices = json.loads(
-                text.split("json_lanAttachedDevice = ")[1].split(";")[0]
-            )
-            _LOGGER.info("Found %s LAN devices", len(lan_devices))
-            _LOGGER.debug(
-                "LAN Devices: %s", [d.get("MAC", "Unknown") for d in lan_devices]
-            )
-
-            _LOGGER.debug("Extracting WLAN devices JSON from response")
-            wireless_devices = json.loads(
-                text.split("json_primaryWlanAttachedDevice = ")[1].split(";")[0]
-            )
-            _LOGGER.info("Found %s WLAN devices", len(wireless_devices))
-            _LOGGER.debug(
-                "WLAN Devices: %s", [d.get("MAC", "Unknown") for d in wireless_devices]
-            )
-
-            return {
-                "lanDevices": lan_devices,
-                "wlanDevices": wireless_devices,
-            }
-        except (json.JSONDecodeError, IndexError, KeyError) as e:
-            _LOGGER.error(
-                "Failed to parse device information from overview data: %s", e
-            )
-            _LOGGER.debug("Response text preview: %s", text[:1000])
-            raise
+            parts = data.split(f"{var_name} = ")
+            if len(parts) < 2:
+                _LOGGER.error("Variable '%s' not found in response", var_name)
+                return None
+            
+            json_str = parts[1].split(";")[0]
+            return json.loads(json_str)
+        except (json.JSONDecodeError, IndexError) as e:
+            _LOGGER.error("Failed to parse %s: %s", var_name, e)
+            return None
