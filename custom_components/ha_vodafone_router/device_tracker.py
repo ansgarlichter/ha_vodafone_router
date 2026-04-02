@@ -93,20 +93,16 @@ class VodafoneDeviceTracker(TrackerEntity):
     @property
     def state(self) -> str:
         """Return the state of the device tracker."""
-        if self.coordinator.data is None:
+        if not self.coordinator.data:
+            _LOGGER.debug("No coordinator data available for %s", self.mac)
             return STATE_NOT_HOME
 
-        connected_macs = {
-            d.get(DEVICE_PROPERTY_MAC_ADDRESS)
-            for d in self.coordinator.data.get(ROUTER_PROPERTY_LAN_DEVICES, [])
-        }
-        connected_macs.update(
-            {
-                d.get(DEVICE_PROPERTY_MAC_ADDRESS)
-                for d in self.coordinator.data.get(ROUTER_PROPERTY_WLAN_DEVICES, [])
-            }
-        )
-        is_connected = self.mac in connected_macs
+        connected_lan_macs = [d.get(DEVICE_PROPERTY_MAC_ADDRESS, "").lower() 
+                   for d in self.coordinator.data.get(ROUTER_PROPERTY_LAN_DEVICES, [])]
+        connected_wifi_macs = [d.get(DEVICE_PROPERTY_MAC_ADDRESS, "").lower() 
+                    for d in self.coordinator.data.get(ROUTER_PROPERTY_WLAN_DEVICES, [])]
+        
+        is_connected = self.mac.lower() in connected_lan_macs or self.mac.lower() in connected_wifi_macs
 
         state = STATE_HOME if is_connected else STATE_NOT_HOME
         _LOGGER.debug(

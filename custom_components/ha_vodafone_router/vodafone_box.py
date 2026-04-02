@@ -271,7 +271,7 @@ class VodafoneBox:
             raise ValueError("Parsing failed: Response format has changed or is corrupted.")
 
     def _safe_extract(self, data, var_name):
-        """Note the 'self' added as the first argument below."""
+        """Extracts property from response safely"""
         try:
             parts = data.split(f"{var_name} = ")
             if len(parts) < 2:
