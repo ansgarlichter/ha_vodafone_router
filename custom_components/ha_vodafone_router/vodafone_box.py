@@ -89,7 +89,7 @@ class VodafoneBox:
         if resp.cookies.get("PHPSESSID"):
             self.session_id = resp.cookies.get("PHPSESSID")
 
-        print(f"Response text preview: {resp.text[:500]}...")
+        _LOGGER.debug(f"Response text preview: {resp.text[:500]}...")
 
         # Extract crypto values with error checking
         iv_match = re.search(r"var myIv = '(.+?)';", resp.text)
@@ -113,6 +113,10 @@ class VodafoneBox:
 
     def login(self, username: str, password: str):
         _LOGGER.info("Starting login process for user: %s", username)
+        self.session.cookies.clear()
+        self.session_id = None
+        self.csrf_nonce = ""
+
         _LOGGER.debug("Initializing crypto values")
         self._init_crypto_values()
 
